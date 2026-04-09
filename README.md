@@ -237,14 +237,11 @@ automation:
       - platform: sun
         event: sunrise
     action:
-      - service: mqtt.publish
+      - action: mqtt.publish
         data:
           topic: "lumisetup/cmd/schedule"
-          payload_template: >
-            {"start":"{{ states.sun.sun.attributes.next_setting
-              | as_datetime | as_local | strftime('%H:%M') }}",
-             "end":"{{ states.sun.sun.attributes.next_rising
-              | as_datetime | as_local | strftime('%H:%M') }}"}
+          payload: >-
+            {"start":"{{ as_timestamp(states.sun.sun.attributes.next_setting) | timestamp_custom('%H:%M', true) }}","end":"{{ as_timestamp(states.sun.sun.attributes.next_rising) | timestamp_custom('%H:%M', true) }}"}
 ```
 
 ---
