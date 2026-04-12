@@ -44,7 +44,7 @@ LumiSetup est une lampe connectée DIY basée sur un **ESP32 WROOM-32**. Elle s'
 
 | Composant | Détails | Lien |
 |-----------|---------|------|
-| ESP32 WROOM-32 | TYPE-C CH340C/CP2102 | [AliExpress](https://s.click.aliexpress.com/e/_c3MNoUdF) |
+| ESP32 WROOM-32 | TYPE-C CH340C/CP2102 | [AliExpress](https://s.click.aliexpress.com/e/_c4dUVEEv) |
 | Capteur PIR | HC-SR501 (recommandé) | [AliExpress](https://s.click.aliexpress.com/e/_c3IHPyYx) |
 | Ruban LED | WS2812B (30 LEDs/m) | [AliExpress](https://s.click.aliexpress.com/e/_c4LMDEiT) |
 | Alimentation | 5V / 2A minimum | [AliExpress](https://s.click.aliexpress.com/e/_c3k73Qgn) |
@@ -297,7 +297,7 @@ LumiSetup is a DIY smart lamp based on an **ESP32 WROOM-32**. It turns on automa
 
 | Component | Details | Link |
 |-----------|---------|------|
-| ESP32 WROOM-32 | TYPE-C CH340C/CP2102 | [AliExpress](https://s.click.aliexpress.com/e/_c3MNoUdF) |
+| ESP32 WROOM-32 | TYPE-C CH340C/CP2102 | [AliExpress](https://s.click.aliexpress.com/e/_c4dUVEEv) |
 | PIR Sensor | HC-SR501 (recommended) | [AliExpress](https://s.click.aliexpress.com/e/_c3IHPyYx) |
 | LED Strip | WS2812B (30 LEDs/m) | [AliExpress](https://s.click.aliexpress.com/e/_c4LMDEiT) |
 | Power Supply | 5V / 2A minimum | [AliExpress](https://s.click.aliexpress.com/e/_c3k73Qgn) |
