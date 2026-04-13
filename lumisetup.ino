@@ -518,18 +518,24 @@ void applyLeds(bool on, bool smooth) {
 void handlePir() {
   bool motion = (digitalRead(PIR_PIN) == HIGH);
   unsigned long now = millis();
-  if (motion && !pirState) {
+
+  if (motion) {
+    if (!pirState) pirState = true;
+
+    // Si LEDs déjà allumées → on ignore, la durée court déjà
+    if (ledsOn) return;
+
+    // LEDs éteintes → vérifier anti-rebond (délai après extinction)
     if (now - lastPirTime > (unsigned long)(cfg.pirDebounce * 1000UL)) {
-      pirState = true; lastPirTime = now;
-      Serial.println("[PIR] Mouvement !");
+      Serial.println("[PIR] Mouvement — allumage !");
       if (isInTimeRange()) {
-        Serial.println("[LED] Allumage !");
         applyLeds(true);
-        lightOffTime = millis() + (unsigned long)(cfg.duration * 1000UL);
+        lightOffTime = now + (unsigned long)(cfg.duration * 1000UL);
+        lastPirTime  = now;
       }
     }
-  } else if (!motion && pirState) {
-    pirState = false;
+  } else {
+    if (pirState) pirState = false;
   }
 }
 
@@ -650,8 +656,12 @@ void setupAppRoutes() {
     if(req->hasParam("mqttPass",true))    cfg.mqttPass    =req->getParam("mqttPass",true)->value();
     if(req->hasParam("mqttId",true))      cfg.mqttId      =req->getParam("mqttId",true)->value();
     saveConfig();
+    // Mode soleil standalone → fetch immédiat
     if(cfg.scheduleMode==2){ fetchSunriseSunset(); lastSunUpdate=millis(); }
-    req->send(200,"application/json","{\"ok\":true}");
+    // Mode HA → on remet les heures par défaut à 0 pour éviter de garder l'ancienne plage manuelle
+    // Le broker HA enverra les vraies heures via MQTT cmd/schedule
+    // Retourner la config complète pour que l'interface se mette à jour
+    req->send(200,"application/json",buildConfigJson());
   });
 
   server.on("/toggle/system", HTTP_POST, [](AsyncWebServerRequest* req){
@@ -780,7 +790,8 @@ void loop() {
 
   if(ledsOn&&lightOffTime>0&&millis()>=lightOffTime){
     applyLeds(false); lightOffTime=0;
-    Serial.println("[LED] Extinction automatique");
+    lastPirTime = millis(); // démarre le compteur anti-rebond après extinction
+    Serial.println("[LED] Extinction automatique — anti-rebond démarré");
     mqttPublishAll();
   }
 

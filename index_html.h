@@ -377,56 +377,52 @@ async function mqttTest(){
   const st=document.getElementById('mqttStatus');
   st.textContent='⏳ Vérification...';st.style.color='var(--muted)';
   try{
-    // D'abord vérifier l'état actuel via /status
     const s=await(await fetch('/status')).json();
-    if(s.mqttConnected){
-      st.textContent='✅ MQTT connecté au broker';
-      st.style.color='var(--green)';
-      return;
-    }
-    // Pas connecté — tenter une reconnexion
-    const d=await(await fetch('/mqtt/test',{method:'POST'})).json();
-    // Attendre 2s puis revérifier l'état réel
+    if(s.mqttConnected){st.textContent='✅ MQTT connecté au broker';st.style.color='var(--green)';return;}
+    await fetch('/mqtt/test',{method:'POST'});
     await new Promise(r=>setTimeout(r,2000));
     const s2=await(await fetch('/status')).json();
-    if(s2.mqttConnected){
-      st.textContent='✅ MQTT connecté au broker';
-      st.style.color='var(--green)';
-    } else {
-      st.textContent='❌ Connexion échouée — vérifiez IP, port et credentials';
-      st.style.color='var(--accent2)';
-    }
+    if(s2.mqttConnected){st.textContent='✅ MQTT connecté au broker';st.style.color='var(--green)';}
+    else{st.textContent='❌ Connexion échouée — vérifiez IP, port et credentials';st.style.color='var(--accent2)';}
   }catch(e){st.textContent='❌ Erreur réseau';st.style.color='var(--accent2)';}
+}
+
+function applyConfigData(d){
+  document.getElementById('colorPicker').value=rgbToHex(d.red||255,d.green||200,d.blue||100);
+  document.getElementById('brightness').value=d.brightness??80;
+  const lbl=document.getElementById('lblBrightness');
+  if(lbl) lbl.textContent=(d.brightness??80)+'%';
+  document.getElementById('numLeds').value=d.numLeds??30;
+  document.getElementById('duration').value=d.duration??120;
+  document.getElementById('pirDebounce').value=d.pirDebounce??3;
+  document.getElementById('fadeEffect').checked=d.fadeEffect!==false;
+  const sh=String(d.startHour??18).padStart(2,'0'),sm=String(d.startMin??0).padStart(2,'0');
+  const eh=String(d.endHour??23).padStart(2,'0'),em=String(d.endMin??0).padStart(2,'0');
+  const tStart=sh+':'+sm, tEnd=eh+':'+em;
+  document.getElementById('startTime').value=tStart;
+  document.getElementById('endTime').value=tEnd;
+  document.getElementById('startTimeHA').value=tStart;
+  document.getElementById('endTimeHA').value=tEnd;
+  // Appliquer le mode AVANT onScheduleModeChange pour éviter le flash
+  const schedSel=document.getElementById('scheduleMode');
+  schedSel.value=d.scheduleMode??0;
+  onScheduleModeChange();
+  document.getElementById('city').value=d.city||'Brussels';
+  const tzSel=document.getElementById('timezone');
+  if(tzSel) tzSel.value=d.timezone||'Europe/Brussels';
+  document.getElementById('mqttEnabled').checked=d.mqttEnabled===true;
+  document.getElementById('mqttHost').value=d.mqttHost||'';
+  document.getElementById('mqttPort').value=d.mqttPort||1883;
+  document.getElementById('mqttId').value=d.mqttId||'lumisetup';
+  document.getElementById('mqttUser').value=d.mqttUser||'';
+  document.getElementById('mqttFields').style.display=d.mqttEnabled?'block':'none';
+  if(d.langFR!==undefined&&isFR!==d.langFR){isFR=d.langFR;applyLang();}
 }
 
 async function loadConfig(){
   try{
     const d=await(await fetch('/config')).json();
-    document.getElementById('colorPicker').value=rgbToHex(d.red||255,d.green||200,d.blue||100);
-    document.getElementById('brightness').value=d.brightness??80;
-    document.getElementById('lblBrightness').textContent=(d.brightness??80)+'%';
-    document.getElementById('numLeds').value=d.numLeds??30;
-    document.getElementById('duration').value=d.duration??120;
-    document.getElementById('pirDebounce').value=d.pirDebounce??3;
-    document.getElementById('fadeEffect').checked=d.fadeEffect!==false;
-    const sh=String(d.startHour??18).padStart(2,'0'),sm=String(d.startMin??0).padStart(2,'0');
-    const eh=String(d.endHour??23).padStart(2,'0'),em=String(d.endMin??0).padStart(2,'0');
-    const t=sh+':'+sm, e=eh+':'+em;
-    document.getElementById('startTime').value=t;
-    document.getElementById('endTime').value=e;
-    document.getElementById('startTimeHA').value=t;
-    document.getElementById('endTimeHA').value=e;
-    document.getElementById('scheduleMode').value=d.scheduleMode??0;
-    document.getElementById('city').value=d.city||'Brussels';
-    document.getElementById('timezone').value=d.timezone||'Europe/Brussels';
-    onScheduleModeChange();
-    document.getElementById('mqttEnabled').checked=d.mqttEnabled===true;
-    document.getElementById('mqttHost').value=d.mqttHost||'';
-    document.getElementById('mqttPort').value=d.mqttPort||1883;
-    document.getElementById('mqttId').value=d.mqttId||'lumisetup';
-    document.getElementById('mqttUser').value=d.mqttUser||'';
-    document.getElementById('mqttFields').style.display=d.mqttEnabled?'block':'none';
-    if(d.langFR!==undefined){isFR=d.langFR;applyLang();}
+    applyConfigData(d);
   }catch(e){console.error(e);}
 }
 
@@ -434,10 +430,12 @@ async function saveConfig(){
   const l=isFR?T.fr:T.en;
   const rgb=hexToRgb(document.getElementById('colorPicker').value);
   const mode=parseInt(document.getElementById('scheduleMode').value);
-  const timeId=mode===0?'startTime':'startTimeHA';
-  const endId=mode===0?'endTime':'endTimeHA';
-  const [sh,sm]=document.getElementById(timeId).value.split(':').map(Number);
-  const [eh,em]=document.getElementById(endId).value.split(':').map(Number);
+  // En mode manuel on envoie les heures manuelles, sinon on envoie 0 (sera géré par HA ou standalone)
+  let sh=0,sm=0,eh=0,em=0;
+  if(mode===0){
+    [sh,sm]=document.getElementById('startTime').value.split(':').map(Number);
+    [eh,em]=document.getElementById('endTime').value.split(':').map(Number);
+  }
   const body=new URLSearchParams({
     red:rgb.r,green:rgb.g,blue:rgb.b,
     brightness:document.getElementById('brightness').value,
@@ -456,8 +454,14 @@ async function saveConfig(){
     mqttUser:document.getElementById('mqttUser').value,
     mqttPass:document.getElementById('mqttPass').value,
   });
-  try{await fetch('/config',{method:'POST',body});showToast(l.toastSaved);}
-  catch(e){showToast('Error',true);}
+  try{
+    const resp=await fetch('/config',{method:'POST',body});
+    const d=await resp.json();
+    // Recharger la config retournée par l'ESP pour mettre à jour l'interface
+    // (important pour le mode soleil standalone qui met à jour startHour/endHour)
+    applyConfigData(d);
+    showToast(l.toastSaved);
+  }catch(e){showToast('❌ Erreur sauvegarde',true);}
 }
 
 function openWifiModal(){document.getElementById('wifiModal').classList.add('open');}
